@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GreenSync Smart Farm</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap"/>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- Top Nav -->
+  <div class="top-nav">
+    <div class="brand">
+      <span class="material-symbols-outlined icon-large">agriculture</span>
+      GreenSync Smart Farm
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-draw" onclick="switchMode('draw')">
+        <span class="material-symbols-outlined">design_services</span> วาดแปลน
+      </button>
+      <button class="tab-btn" id="tab-status" onclick="switchMode('status')">
+        <span class="material-symbols-outlined">query_stats</span> ติดตามสถานะ
+      </button>
+    </div>
+    <div class="nav-right">
+      <span id="total-areas" class="nav-chip">0 พื้นที่</span>
+    </div>
+  </div>
+
+  <!-- Toolbar (Draw Mode) -->
+  <div class="toolbar" id="editor-toolbar">
+    <div class="tool-group">
+      <button class="btn active" id="tool-area" onclick="setTool('area')">
+        <span class="material-symbols-outlined icon-small">add_box</span> วาดพื้นที่ใหม่
+      </button>
+      <button class="btn" id="tool-node" onclick="setTool('node')">
+        <span class="material-symbols-outlined icon-small">sensors</span> ปักหมุด IoT
+      </button>
+      <button class="btn" id="tool-select" onclick="setTool('select')">
+        <span class="material-symbols-outlined icon-small">ads_click</span> เลือก/แก้ไข
+      </button>
+      <button class="btn btn-danger" id="btn-delete" onclick="deleteSelected()" style="display:none">
+        <span class="material-symbols-outlined icon-small">delete</span> ลบ
+      </button>
+    </div>
+    <div class="sep"></div>
+    <div class="tool-group">
+      <span class="toolbar-label">สี:</span>
+      <div class="color-pick" id="color-pick">
+        <div class="color-dot selected" style="background:#1D9E75" data-c="#1D9E75" onclick="setColor(this)"></div>
+        <div class="color-dot" style="background:#378ADD" data-c="#378ADD" onclick="setColor(this)"></div>
+        <div class="color-dot" style="background:#EF9F27" data-c="#EF9F27" onclick="setColor(this)"></div>
+        <div class="color-dot" style="background:#D85A30" data-c="#D85A30" onclick="setColor(this)"></div>
+        <div class="color-dot" style="background:#7F77DD" data-c="#7F77DD" onclick="setColor(this)"></div>
+        <div class="color-dot" style="background:#E24B4A" data-c="#E24B4A" onclick="setColor(this)"></div>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <button class="btn" onclick="clearAll()">
+      <span class="material-symbols-outlined icon-small">restart_alt</span> ล้างทั้งหมด
+    </button>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="main" id="main-layout">
+    <div class="canvas-wrap">
+      <canvas id="canvas"></canvas>
+      <div class="canvas-hint" id="canvas-hint">คลิกลากเพื่อวาดพื้นที่</div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+
+      <!-- Draw Mode View -->
+      <div id="view-draw">
+        <div class="sidebar-header">
+          <span>พื้นที่ทั้งหมด</span>
+          <span class="count-badge" id="plot-count">0</span>
+        </div>
+        <div class="plot-list" id="plot-list">
+          <div class="empty-state">
+            <span class="material-symbols-outlined" style="font-size:36px;color:#bbb">landscape</span>
+            <p>ยังไม่มีพื้นที่<br>วาดเพื่อเริ่มต้น</p>
+          </div>
+        </div>
+
+        <!-- Detail Panel -->
+        <div class="detail-panel" id="detail-panel" style="display:none">
+          <div class="detail-header">
+            <div class="detail-icon-wrap" id="detail-icon-wrap">
+              <span class="detail-type-icon" id="detail-icon">🌾</span>
+            </div>
+            <div class="detail-title-group">
+              <div class="detail-title" id="detail-title">พื้นที่</div>
+              <div class="detail-type-label" id="detail-type-label">แปลงนา</div>
+            </div>
+          </div>
+
+          <!-- Custom name -->
+          <div class="field-row">
+            <label>ชื่อพื้นที่</label>
+            <input type="text" id="inp-name" placeholder="ตั้งชื่อพื้นที่..." oninput="updateField('name', this.value)"/>
+          </div>
+
+          <!-- Area type selector (dynamic) -->
+          <div class="field-row" id="row-area-type">
+            <label>ประเภทพื้นที่</label>
+            <div class="type-grid" id="type-grid"></div>
+          </div>
+
+          <!-- Dynamic fields based on type -->
+          <div id="dynamic-fields"></div>
+
+          <!-- Common: moisture/temp/note -->
+          <div class="field-row" id="row-sensor" style="display:none">
+            <label id="sensor-label">ค่าจากเซ็นเซอร์</label>
+            <input type="number" id="inp-moisture" placeholder="ระบุค่า (สำหรับทดสอบ)" oninput="updateField('sensorVal', this.value)"/>
+          </div>
+          <div class="field-row">
+            <label>หมายเหตุ</label>
+            <textarea id="inp-note" rows="2" placeholder="บันทึกเพิ่มเติม..." oninput="updateField('note', this.value)"></textarea>
+          </div>
+
+          <button class="save-btn" onclick="saveSelected()">
+            <span class="material-symbols-outlined icon-small">save</span> บันทึกข้อมูล
+          </button>
+        </div>
+      </div>
+
+      <!-- Status Mode View -->
+      <div id="view-status" style="display:none; height:100%; overflow-y:auto">
+        <div class="status-header">
+          <h2><span class="material-symbols-outlined">monitoring</span> Dashboard ฟาร์ม</h2>
+        </div>
+        <div id="status-empty" class="status-empty-state">
+          <span class="material-symbols-outlined" style="font-size:48px;color:#bbb">touch_app</span>
+          <p>คลิกเลือกพื้นที่บนแผนที่<br>เพื่อดูสถานะ</p>
+        </div>
+        <div id="status-dashboard" style="display:none; padding:16px; display:none">
+          <div class="dash-title-card">
+            <div class="dash-area-icon" id="dash-icon">🌾</div>
+            <div>
+              <div class="dash-area-name" id="dash-title">—</div>
+              <div class="dash-area-type" id="dash-type-label">—</div>
+            </div>
+            <span class="dash-badge" id="dash-badge">—</span>
+          </div>
+          <div class="dash-grid" id="dash-grid"></div>
+          <div class="dash-card pump-card">
+            <button class="btn-pump" id="btn-pump" onclick="togglePump()">
+              <span class="material-symbols-outlined">power_settings_new</span> สั่งงานระบบ
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- New Area Type Modal -->
+<div id="modal-overlay" class="modal-overlay" style="display:none" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">
+      <span class="material-symbols-outlined">add_circle</span> กำหนดพื้นที่ใหม่
+    </div>
+    <p class="modal-subtitle">เลือกประเภท หรือพิมพ์ชื่อเองได้เลย</p>
+
+    <div class="modal-presets" id="modal-presets"></div>
+
+    <div class="modal-custom">
+      <div class="custom-row">
+        <div class="field-row" style="flex:1">
+          <label>ชื่อพื้นที่</label>
+          <input type="text" id="modal-name" placeholder="เช่น โรงเพาะเห็ดหลังบ้าน" />
+        </div>
+        <div class="field-row" style="width:90px">
+          <label>ไอคอน</label>
+          <input type="text" id="modal-icon" placeholder="🌿" maxlength="2"/>
+        </div>
+      </div>
+      <div class="field-row">
+        <label>หมวดหมู่</label>
+        <select id="modal-category">
+          <option value="crop">พืชไร่ / พืชสวน</option>
+          <option value="livestock">ปศุสัตว์ / สัตว์น้ำ</option>
+          <option value="structure">โครงสร้าง / อาคาร</option>
+          <option value="sensor">จุดวัด / IoT</option>
+          <option value="other">อื่นๆ</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">ยกเลิก</button>
+      <button class="modal-confirm" onclick="confirmModal()">
+        <span class="material-symbols-outlined icon-small">check</span> สร้างพื้นที่
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
